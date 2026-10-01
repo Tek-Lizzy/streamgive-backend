@@ -113,7 +113,10 @@ async function handleWithdraw(event: ContractEvent): Promise<void> {
   const accrued = scValToNative(event.value) as bigint;
 
   const stream = await prisma.stream.findUnique({ where: { onChainId } });
-  if (!stream) return;
+  if (!stream) {
+    console.warn(`[indexer] Warning: withdraw event for unknown stream ${onChainId}`);
+    return;
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.stream.update({
@@ -164,7 +167,10 @@ async function handleCancel(event: ContractEvent): Promise<void> {
   const [accrued, refund] = scValToNative(event.value) as [bigint, bigint];
 
   const stream = await prisma.stream.findUnique({ where: { onChainId } });
-  if (!stream) return;
+  if (!stream) {
+    console.warn(`[indexer] Warning: cancel event for unknown stream ${onChainId}`);
+    return;
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.stream.update({

@@ -1,5 +1,5 @@
 import { xdr } from '@stellar/stellar-sdk';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { prisma } from '../../src/db.js';
 import { handleDonationVaultEvent } from '../../src/indexer/handlers/donationVault.js';
@@ -212,24 +212,34 @@ describe('handleDonationVaultEvent', () => {
     expect(streamEvent).toBeNull();
   });
 
-  it('no-ops when a withdraw event is received for an unknown stream', async () => {
+  it('no-ops and logs a warning when a withdraw event is received for an unknown stream', async () => {
     const unknownOnChainId = 999n;
     const event = makeEvent([symbolScVal('withdraw'), u64ScVal(unknownOnChainId)], i128ScVal(500n));
 
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
     await expect(handleDonationVaultEvent(event)).resolves.not.toThrow();
+
+    expect(warnSpy).toHaveBeenCalledWith(`[indexer] Warning: withdraw event for unknown stream ${unknownOnChainId}`);
+    warnSpy.mockRestore();
 
     const stream = await prisma.stream.findUnique({ where: { onChainId: unknownOnChainId } });
     expect(stream).toBeNull();
   });
 
-  it('no-ops when a cancel event is received for an unknown stream', async () => {
+  it('no-ops and logs a warning when a cancel event is received for an unknown stream', async () => {
     const unknownOnChainId = 999n;
     const event = makeEvent(
       [symbolScVal('cancel'), u64ScVal(unknownOnChainId)],
       xdr.ScVal.scvVec([i128ScVal(300n), i128ScVal(700n)]),
     );
 
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
     await expect(handleDonationVaultEvent(event)).resolves.not.toThrow();
+
+    expect(warnSpy).toHaveBeenCalledWith(`[indexer] Warning: cancel event for unknown stream ${unknownOnChainId}`);
+    warnSpy.mockRestore();
 
     const stream = await prisma.stream.findUnique({ where: { onChainId: unknownOnChainId } });
     expect(stream).toBeNull();
